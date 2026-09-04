@@ -19,7 +19,8 @@ import itertools
 import typing
 from typing import Collection, Dict, List, Optional, Sequence, Tuple, Union
 
-import annotated_types
+import pydantic
+from pydantic import AfterValidator
 from typing_extensions import Annotated
 
 from craft_platforms import _architectures, _buildinfo, _distro, _errors, _utils
@@ -31,11 +32,40 @@ RESERVED_PLATFORM_NAMES = frozenset(
     )
 )
 
+
+def _validate_not_empty_sequence(value: Sequence[str]) -> Sequence[str]:
+    """Validate that a sequence is not empty.
+
+    Args:
+        value: The sequence to validate.
+
+    Returns:
+        The validated sequence.
+
+    Raises:
+        ValueError: If the sequence is empty.
+
+    """
+    if not value:
+        raise ValueError("Sequence must contain at least one element")
+    return value
+
+
+# Create a type that enforces the constraint
+NotEmptySequence = Annotated[
+    Sequence[str],
+    AfterValidator(_validate_not_empty_sequence),
+    pydantic.Field(
+        description="A non-empty sequence of strings",
+        min_length=1,
+    ),
+]
+
 PlatformDict = typing.TypedDict(
     "PlatformDict",
     {
         "build-on": Union[Sequence[str], str],
-        "build-for": Union[Annotated[Sequence[str], annotated_types.Len(1)], str],
+        "build-for": Union[NotEmptySequence, str],
     },
 )
 """The platforms where an artifact is built and where the resulting artifact runs."""
